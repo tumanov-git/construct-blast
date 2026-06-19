@@ -38,7 +38,7 @@ ARCHIVE="${TMPDIR:-/tmp}/construct-blast-${TIMESTAMP}.tgz"
 REMOTE_ARCHIVE="/tmp/construct-blast-${TIMESTAMP}.tgz"
 
 echo "==> Packing $BUILD_DIR"
-COPYFILE_DISABLE=1 tar -C "$ROOT/$BUILD_DIR" -czf "$ARCHIVE" .
+COPYFILE_DISABLE=1 tar --no-xattrs -C "$ROOT/$BUILD_DIR" -czf "$ARCHIVE" .
 
 echo "==> Uploading to $REMOTE"
 scp "$ARCHIVE" "$REMOTE:$REMOTE_ARCHIVE"
