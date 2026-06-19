@@ -20,6 +20,15 @@ export interface SimulatedMove {
   clearedBlocks: number;
 }
 
+export interface BoardShapeMetrics {
+  emptyBlocks: number;
+  largestEmptyRegion: number;
+  fragmentedEmpty: number;
+  mobility: number;
+  nearLines: number;
+  danger: number;
+}
+
 export interface MoveQualityReport {
   rating: number;
   tier: MoveQualityTier;
@@ -28,8 +37,11 @@ export interface MoveQualityReport {
   moveScore: number;
   bestScore: number;
   worstScore: number;
+  scoreDeltaFromBest: number;
   linesCleared: number;
   clearedBlocks: number;
+  before: BoardShapeMetrics;
+  after: BoardShapeMetrics;
 }
 
 const MOVE_SEARCH_DEPTH = 2;
@@ -274,7 +286,7 @@ function countHandPlacements(board: Board, hand: Hand, cap: number): number {
   return count;
 }
 
-function scoreBoardShape(board: Board, hand: Hand): number {
+function getBoardShapeMetrics(board: Board, hand: Hand): BoardShapeMetrics {
   "worklet";
   const empty = countEmptyBlocks(board);
   const largestRegion = getLargestEmptyRegion(board);
@@ -283,13 +295,31 @@ function scoreBoardShape(board: Board, hand: Hand): number {
   const nearLines = getNearLineScore(board);
   const boardArea = board.length * board.length;
   const emptyRatio = empty / boardArea;
+  const fragmentation = empty === 0 ? 1 : 1 - largestRegion / empty;
+  const danger = clamp(1 - emptyRatio * 1.35 + fragmentation * 0.65, 0, 1);
+
+  return {
+    emptyBlocks: empty,
+    largestEmptyRegion: largestRegion,
+    fragmentedEmpty,
+    mobility,
+    nearLines,
+    danger,
+  };
+}
+
+function scoreBoardShape(board: Board, hand: Hand): number {
+  "worklet";
+  const metrics = getBoardShapeMetrics(board, hand);
+  const boardArea = board.length * board.length;
+  const emptyRatio = metrics.emptyBlocks / boardArea;
 
   let score = 0;
-  score += empty * 1.2;
-  score += largestRegion * 1.8;
-  score += mobility * 1.1;
-  score += nearLines;
-  score -= fragmentedEmpty * 1.6;
+  score += metrics.emptyBlocks * 1.2;
+  score += metrics.largestEmptyRegion * 1.8;
+  score += metrics.mobility * 1.1;
+  score += metrics.nearLines;
+  score -= metrics.fragmentedEmpty * 1.6;
 
   if (emptyRatio < 0.18) {
     score -= 95;
@@ -298,6 +328,18 @@ function scoreBoardShape(board: Board, hand: Hand): number {
   }
 
   return score;
+}
+
+function getEmptyBoardShapeMetrics(): BoardShapeMetrics {
+  "worklet";
+  return {
+    emptyBlocks: 0,
+    largestEmptyRegion: 0,
+    fragmentedEmpty: 0,
+    mobility: 0,
+    nearLines: 0,
+    danger: 0,
+  };
 }
 
 export function simulateMove(
@@ -433,8 +475,11 @@ export function evaluateMoveQuality(
       moveScore: 0,
       bestScore: 0,
       worstScore: 0,
+      scoreDeltaFromBest: 0,
       linesCleared: 0,
       clearedBlocks: 0,
+      before: getEmptyBoardShapeMetrics(),
+      after: getEmptyBoardShapeMetrics(),
     };
   }
 
@@ -480,6 +525,8 @@ export function evaluateMoveQuality(
     totalMoves <= 1 ? 100 : (1 - betterMoves / Math.max(1, totalMoves - 1)) * 100;
   const rating = clamp(Math.round(scoreRating * 0.35 + rankRating * 0.65), 0, 100);
   const rank = betterMoves + 1;
+  const nextHand = [...hand];
+  nextHand[handIndex] = null;
 
   return {
     rating,
@@ -489,8 +536,11 @@ export function evaluateMoveQuality(
     moveScore: Math.round(chosen.score),
     bestScore: Math.round(bestScore),
     worstScore: Math.round(worstScore),
+    scoreDeltaFromBest: Math.round(chosen.score - bestScore),
     linesCleared: chosen.simulated.linesCleared,
     clearedBlocks: chosen.simulated.clearedBlocks,
+    before: getBoardShapeMetrics(board, hand),
+    after: getBoardShapeMetrics(chosen.simulated.board, nextHand),
   };
 }
 
@@ -504,12 +554,7 @@ function scoreHandCandidate(board: Board, hand: Hand): number {
 
 function getBoardDanger(board: Board): number {
   "worklet";
-  const empty = countEmptyBlocks(board);
-  const largestRegion = getLargestEmptyRegion(board);
-  const area = board.length * board.length;
-  const emptyRatio = empty / area;
-  const fragmentation = empty === 0 ? 1 : 1 - largestRegion / empty;
-  return clamp(1 - emptyRatio * 1.35 + fragmentation * 0.65, 0, 1);
+  return getBoardShapeMetrics(board, []).danger;
 }
 
 export function createSmartHandWorklet(board: Board, handSize: number): Hand {

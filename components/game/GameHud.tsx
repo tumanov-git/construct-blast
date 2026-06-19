@@ -84,7 +84,23 @@ function getMoveQualityLabel(moveQuality: MoveQualityReport | null): string {
 		ok: "так себе",
 		miss: "плохой",
 	};
-	return `DEV: ${labels[moveQuality.tier]} ${moveQuality.rating}/100 · #${moveQuality.rank}/${moveQuality.totalMoves}`;
+	const mobilityDelta = moveQuality.after.mobility - moveQuality.before.mobility;
+	const regionDelta = moveQuality.after.largestEmptyRegion - moveQuality.before.largestEmptyRegion;
+	const fragmentDelta = moveQuality.after.fragmentedEmpty - moveQuality.before.fragmentedEmpty;
+	const dangerDelta = Math.round((moveQuality.after.danger - moveQuality.before.danger) * 100);
+
+	return [
+		`DEV ${labels[moveQuality.tier]} · #${moveQuality.rank}/${moveQuality.totalMoves} · ${moveQuality.rating}/100 · best ${formatSigned(moveQuality.scoreDeltaFromBest)}`,
+		`score ${moveQuality.moveScore}/${moveQuality.bestScore} · lines ${moveQuality.linesCleared} · clear ${moveQuality.clearedBlocks}`,
+		`mob ${formatSigned(mobilityDelta)}=${moveQuality.after.mobility} · reg ${formatSigned(regionDelta)}=${moveQuality.after.largestEmptyRegion} · frag ${formatSigned(fragmentDelta)} · risk ${formatSigned(dangerDelta)}`,
+	].join("\n");
+}
+
+function formatSigned(value: number): string {
+	if (value > 0) {
+		return `+${value}`;
+	}
+	return String(value);
 }
 
 function MoveQualityDevPanel({ moveQuality }: { moveQuality: MoveQualityReport | null }) {
@@ -225,23 +241,28 @@ const styles = StyleSheet.create({
 		position: 'absolute'
 	},
 	moveQualityContainer: {
-		height: 24,
-		marginTop: 10,
+		minHeight: 52,
+		width: "100%",
+		marginTop: 8,
 		flexDirection: "row",
-		alignItems: "center",
+		alignItems: "flex-start",
 		justifyContent: "center",
+		paddingHorizontal: 8,
 	},
 	moveQualityDot: {
 		width: 10,
 		height: 10,
 		borderRadius: 5,
 		marginRight: 8,
+		marginTop: 3,
 	},
 	moveQualityText: {
 		color: "rgb(180, 180, 180)",
 		fontFamily: "Silkscreen",
-		fontSize: 11,
+		fontSize: 9,
+		lineHeight: 12,
 		textAlign: "center",
+		flexShrink: 1,
 	},
 	hudLabel: {
 		color: 'white',
