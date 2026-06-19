@@ -33,6 +33,9 @@
 - The user has a server alias: `ssh vps-sw2`.
 - Deployment target is `tematumanov.ru/construct`.
 - Server inspection must be read-only unless the user explicitly asks to deploy or mutate server state.
+- One-button deploy command: `npm run deploy`.
+- Telegram bot setup command: `npm run telegram:init`.
+- Never commit Telegram bot tokens. Pass them as `TELEGRAM_BOT_TOKEN` or paste into the hidden prompt.
 
 ## Validation
 

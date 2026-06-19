@@ -38,8 +38,17 @@ function BlockerinoLogo({blockSize, style}: {blockSize: number, style: ViewStyle
 	</View>
 }
 
-export default function MainMenu() {
+export default function MainMenu({
+	isTelegramMiniApp,
+	telegramUserLabel,
+}: {
+	isTelegramMiniApp?: boolean;
+	telegramUserLabel?: string | null;
+}) {
 	const [ _, appendAppState ] = useSetAppState();
+	const footerText = isTelegramMiniApp
+		? `mini app${telegramUserLabel ? ` · ${telegramUserLabel}` : ""}`
+		: "dev build";
 	
 	return <View style={styles.container}>
 
@@ -65,7 +74,7 @@ export default function MainMenu() {
 		}} backgroundColor={cssColors.green} title={"Настройки"} />
 
 		<Animated.Text entering={FadeIn} style={styles.footer}>
-			dev build
+			{footerText}
 		</Animated.Text>
 	</View>
 }

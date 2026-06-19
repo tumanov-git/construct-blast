@@ -17,6 +17,7 @@ import MainMenu from "@/components/MainMenu";
 import HighScores from "@/components/HighScoresMenu";
 import { PieceParticle } from "@/components/PieceParticle";
 import LoadingScreen from "@/components/LoadingScreen";
+import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 
 configureReanimatedLogger({
 	level: ReanimatedLogLevel.warn,
@@ -32,6 +33,7 @@ export default function App() {
 	});
 
 	const [ appState ] = useAppState();
+	const telegram = useTelegramWebApp();
 
 	if (!loaded) return <LoadingScreen />;
 
@@ -44,7 +46,12 @@ export default function App() {
 				<PieceParticle key={`particle${i}`} />
 			))}
 
-			{ (appState.containsState(MenuStateType.MENU) && !gameMode) && <MainMenu></MainMenu> }
+			{ (appState.containsState(MenuStateType.MENU) && !gameMode) && (
+				<MainMenu
+					isTelegramMiniApp={telegram.isTelegramMiniApp}
+					telegramUserLabel={telegram.userLabel}
+				></MainMenu>
+			) }
 			{ gameMode && <Game gameMode={gameMode}></Game> }
 			{ appState.containsState(MenuStateType.OPTIONS) && <OptionsMenu></OptionsMenu> }
 			{ appState.containsState(MenuStateType.HIGH_SCORES) && <HighScores></HighScores>}

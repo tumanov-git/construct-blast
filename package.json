@@ -10,8 +10,10 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "deploy": "gh-pages --nojekyll -d dist",
-    "predeploy": "expo export -p web"
+    "typecheck": "tsc --noEmit",
+    "export:web": "expo export -p web",
+    "deploy": "scripts/deploy.sh",
+    "telegram:init": "scripts/configure-telegram-bot.sh"
   },
   "jest": {
     "preset": "jest-expo"
