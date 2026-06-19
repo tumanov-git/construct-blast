@@ -34,6 +34,28 @@ if ! grep -q "${APP_PATH}/" "$ROOT/$BUILD_DIR/index.html"; then
 	exit 1
 fi
 
+COMMIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+COMMIT_SHORT="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
+BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+DIRTY="false"
+if [[ -n "$(git status --porcelain 2>/dev/null || true)" ]]; then
+	DIRTY="true"
+	echo "==> Warning: deploying a dirty worktree"
+fi
+
+node -e '
+const fs = require("fs");
+const [file, commit, commitShort, dirty, builtAt, appPath] = process.argv.slice(1);
+fs.writeFileSync(file, JSON.stringify({
+	app: "construct-blast",
+	commit,
+	commitShort,
+	dirty: dirty === "true",
+	builtAt,
+	path: appPath,
+}, null, 2) + "\n");
+' "$ROOT/$BUILD_DIR/deploy.json" "$COMMIT_SHA" "$COMMIT_SHORT" "$DIRTY" "$BUILD_TIME" "$APP_PATH"
+
 ARCHIVE="${TMPDIR:-/tmp}/construct-blast-${TIMESTAMP}.tgz"
 REMOTE_ARCHIVE="/tmp/construct-blast-${TIMESTAMP}.tgz"
 
