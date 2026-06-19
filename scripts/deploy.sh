@@ -38,7 +38,7 @@ ARCHIVE="${TMPDIR:-/tmp}/construct-blast-${TIMESTAMP}.tgz"
 REMOTE_ARCHIVE="/tmp/construct-blast-${TIMESTAMP}.tgz"
 
 echo "==> Packing $BUILD_DIR"
-tar -C "$ROOT/$BUILD_DIR" -czf "$ARCHIVE" .
+COPYFILE_DISABLE=1 tar -C "$ROOT/$BUILD_DIR" -czf "$ARCHIVE" .
 
 echo "==> Uploading to $REMOTE"
 scp "$ARCHIVE" "$REMOTE:$REMOTE_ARCHIVE"
@@ -77,16 +77,21 @@ mv "$stage" "$target"
 if ! grep -q "$marker_begin" "$caddyfile"; then
 	cp "$caddyfile" "${caddyfile}.bak-${timestamp}"
 	tmpfile="$(mktemp)"
-	awk -v root_line="    root * /var/www/tematumanov.ru" \
-		-v app="$app_name" \
+	awk -v app="$app_name" \
+		-v remote_root="$remote_root" \
 		-v begin="$marker_begin" \
 		-v end="$marker_end" '
-		$0 == root_line && !inserted {
+		function trim(value) {
+			gsub(/^[[:space:]]+/, "", value)
+			gsub(/[[:space:]]+$/, "", value)
+			return value
+		}
+		trim($0) == "root * " remote_root && !inserted {
 			print "    " begin
 			print "    redir /" app " /" app "/"
 			print ""
 			print "    handle_path /" app "/* {"
-			print "        root * /var/www/tematumanov.ru/" app
+			print "        root * " remote_root "/" app
 			print "        try_files {path} /index.html"
 			print "        file_server"
 			print "    }"
@@ -95,11 +100,21 @@ if ! grep -q "$marker_begin" "$caddyfile"; then
 			inserted=1
 		}
 		{ print }
-	' "$caddyfile" > "$tmpfile"
+		END {
+			if (!inserted) {
+				exit 42
+			}
+		}
+	' "$caddyfile" > "$tmpfile" || {
+		rm -f "$tmpfile"
+		echo "Could not insert $app_path route before root directive in $caddyfile" >&2
+		exit 1
+	}
 	cp "$tmpfile" "$caddyfile"
 	rm -f "$tmpfile"
 fi
 
+caddy fmt --overwrite "$caddyfile"
 caddy validate --config "$caddyfile"
 systemctl reload caddy
 
