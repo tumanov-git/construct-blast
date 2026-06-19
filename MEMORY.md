@@ -36,6 +36,7 @@
 - One-button deploy command: `npm run deploy`.
 - Telegram bot setup command: `npm run telegram:init`.
 - Never commit Telegram bot tokens. Pass them as `TELEGRAM_BOT_TOKEN` or paste into the hidden prompt.
+- Server env file: `/etc/construct-blast/construct-blast.env`, root-only (`700` dir, `600` file), outside the Caddy webroot.
 
 ## Validation
 
