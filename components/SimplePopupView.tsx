@@ -1,20 +1,38 @@
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { uiColors } from "@/constants/Color";
 
-export default function SimplePopupView({children, style}: {children: any, style?: any[]}) {
-	if (style == undefined)
-		style = [];
-    return <View style={[{
-		width: '81%',
-		height: '71%',
-		backgroundColor: 'rgba(5, 5, 5, 0.95)',
-		borderRadius: 20,
-		borderColor: 'rgb(90, 90, 90)',
-		borderWidth: 2,
-		justifyContent: 'center',
-		alignItems: 'center',
-		position: 'absolute',
-		zIndex: 100,
-        overflowY: 'scroll',
-		boxSizing: 'border-box'
-	}, ...style]}>{children}</View>
+export default function SimplePopupView({children, style = []}: {children: any, style?: any[]}) {
+    return (
+		<View style={styles.backdrop}>
+			<View style={[styles.panel, ...style]}>{children}</View>
+		</View>
+	);
 }
+
+const styles = StyleSheet.create({
+	backdrop: {
+		position: "absolute",
+		top: 0,
+		right: 0,
+		bottom: 0,
+		left: 0,
+		zIndex: 100,
+		backgroundColor: uiColors.overlay,
+		justifyContent: "center",
+		alignItems: "center",
+		padding: 18,
+	},
+	panel: {
+		width: "100%",
+		maxWidth: 500,
+		maxHeight: "82%",
+		backgroundColor: uiColors.panel,
+		borderRadius: 8,
+		borderColor: uiColors.panelLine,
+		borderWidth: 1,
+		justifyContent: "center",
+		alignItems: "stretch",
+		padding: 20,
+		overflow: "hidden",
+	},
+});

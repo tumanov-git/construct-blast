@@ -1,74 +1,86 @@
-import { cssColors } from "@/constants/Color";
-import { MenuStateType, useAppState } from "@/hooks/useAppState";
+import { AppState, GameModeType, MenuStateType, useAppState } from "@/hooks/useAppState";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import SimplePopupView from "./SimplePopupView";
 import StylizedButton from "./StylizedButton";
 import { useSettings } from "@/hooks/useSettings";
-import { clearHighScores } from "@/constants/Storage";
+import { uiColors } from "@/constants/Color";
+import type { ReactNode } from "react";
 
 export default function OptionsMenu() {
-	const [ appState, setAppState, _appendAppState, popAppState ] = useAppState();
+	const [appState, setAppState, , popAppState] = useAppState();
 	const [settings, setSettings] = useSettings();
+	const gameState = appState.containsGameMode();
 
-	return <SimplePopupView>
-		<StylizedButton onClick={popAppState} text="Назад" backgroundColor={cssColors.spaceGray}></StylizedButton>
-		<SettingLabel title="Вибрация" description="Короткий отклик при постановке блока">
-			<Switch
-				value={settings.hapticsEnabled}
-				onValueChange={(value) => {
-					setSettings((current) => ({ ...current, hapticsEnabled: value }));
-				}}
-			/>
-		</SettingLabel>
-		<SettingLabel title="Dev оценка" description="Показывать качество последнего хода">
-			<Switch
-				value={settings.devHudEnabled}
-				onValueChange={(value) => {
-					setSettings((current) => ({ ...current, devHudEnabled: value }));
-				}}
-			/>
-		</SettingLabel>
-		{ appState.containsGameMode() && 
-			<StylizedButton onClick={() => { setAppState(MenuStateType.MENU) }} text="Выйти" backgroundColor={cssColors.brightNiceRed}></StylizedButton>
+	const exitToMenu = () => {
+		if (gameState) {
+			setAppState(new AppState(MenuStateType.MENU, new AppState(gameState.current as GameModeType)));
+			return;
 		}
-		<StylizedButton onClick={() => { clearHighScores(); }} text="Сброс рекордов" backgroundColor={cssColors.pitchBlack} borderColor="rgb(80, 80, 80)"></StylizedButton>
-	</SimplePopupView>
+
+		setAppState(MenuStateType.MENU);
+	};
+
+	return (
+		<SimplePopupView>
+			<Text style={styles.title}>Настройки</Text>
+			<SettingRow title="Вибрация">
+				<Switch
+					value={settings.hapticsEnabled}
+					trackColor={{ false: "#444444", true: uiColors.settings }}
+					thumbColor={uiColors.text}
+					onValueChange={(value) => {
+						setSettings((current) => ({ ...current, hapticsEnabled: value }));
+					}}
+				/>
+			</SettingRow>
+			<View style={styles.actions}>
+				<StylizedButton onClick={popAppState} text="Назад" tone="settings" />
+				{gameState && (
+					<StylizedButton onClick={exitToMenu} text="Выйти" tone="play" />
+				)}
+			</View>
+		</SimplePopupView>
+	);
 }
 
-function SettingLabel({title, description, children}: {title: string, description?: string, children?: any}) {
-	return <View style={styles.settingLabelContainer}>
-		<Text style={styles.settingTitle}>{title}</Text>
-		{description && <Text style={styles.settingDesc}>{description}</Text>}
-		<View style={styles.settingLabelChildren}>
+function SettingRow({ title, children }: { title: string; children: ReactNode }) {
+	return (
+		<View style={styles.settingRow}>
+			<Text style={styles.settingTitle}>{title}</Text>
 			{children}
 		</View>
-	</View>
+	);
 }
 
 const styles = StyleSheet.create({
-	settingLabelContainer: {
-		width: '80%',
-		height: 'auto',
-		justifyContent: 'flex-start',
-		alignItems: 'flex-start',
-		marginTop: 6,
-		marginBottom: 6
+	title: {
+		color: uiColors.text,
+		fontFamily: "GraphikLC-Bold",
+		fontSize: 34,
+		lineHeight: 40,
+		fontWeight: "700",
+		letterSpacing: -1.02,
+		textAlign: "center",
+		marginBottom: 18,
 	},
-	settingLabelChildren: {
-		width: 'auto',
-		height: 'auto',
-		position: 'absolute',
-		alignSelf: 'flex-end',
-		justifyContent: 'flex-end',
+	settingRow: {
+		minHeight: 64,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		borderBottomWidth: 1,
+		borderBottomColor: uiColors.panelLine,
 	},
 	settingTitle: {
-		color: 'white',
-		fontSize: 16,
-		fontFamily: 'Silkscreen'
+		color: uiColors.text,
+		fontFamily: "GraphikLC-Bold",
+		fontSize: 22,
+		lineHeight: 26,
+		fontWeight: "700",
+		letterSpacing: -0.66,
 	},
-	settingDesc: {
-		color: 'rgb(160, 160, 160)',
-		fontSize: 8,
-		fontFamily: 'Silkscreen'
-	}
+	actions: {
+		alignItems: "center",
+		marginTop: 20,
+	},
 });

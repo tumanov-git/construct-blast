@@ -1,13 +1,13 @@
-import { cssColors } from "@/constants/Color";
+import { uiColors } from "@/constants/Color";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function LoadingScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.blocks}>
-        <View style={[styles.block, { backgroundColor: cssColors.brightNiceRed }]} />
-        <View style={[styles.block, { backgroundColor: cssColors.green }]} />
-        <View style={[styles.block, { backgroundColor: cssColors.pink }]} />
+        <View style={[styles.block, { backgroundColor: uiColors.play }]} />
+        <View style={[styles.block, { backgroundColor: uiColors.leaderboard }]} />
+        <View style={[styles.block, { backgroundColor: uiColors.settings }]} />
       </View>
       <Text style={styles.title}>construct blast</Text>
       <Text style={styles.caption}>loading</Text>
@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     height: "100%",
-    backgroundColor: "black",
+    backgroundColor: uiColors.background,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -33,17 +33,20 @@ const styles = StyleSheet.create({
     height: 26,
     marginHorizontal: 4,
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.32)",
+    borderRadius: 6,
+    borderColor: "rgba(255, 255, 255, 0.24)",
   },
   title: {
-    color: "white",
+    color: uiColors.text,
     fontSize: 26,
+    fontFamily: "GraphikLC-Bold",
     fontWeight: "800",
     letterSpacing: 0,
     textTransform: "uppercase",
   },
   caption: {
-    color: "rgb(120, 120, 120)",
+    color: uiColors.textMuted,
+    fontFamily: "GraphikLC-Bold",
     fontSize: 12,
     marginTop: 8,
     letterSpacing: 0,

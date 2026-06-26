@@ -5,7 +5,13 @@ import {
   placePieceOntoBoard,
 } from "./Board";
 import { Hand, createRandomHandWorklet } from "./Hand";
-import { PieceData, getBlockCount } from "./Piece";
+import {
+  PieceData,
+  getBlockCount,
+  getRandomPieceAssetIdWorklet,
+  getRandomPieceColorWorklet,
+  piecesData,
+} from "./Piece";
 
 export type MoveQualityTier = "miss" | "ok" | "good" | "great" | "best";
 
@@ -45,7 +51,6 @@ export interface MoveQualityReport {
 }
 
 const MOVE_SEARCH_DEPTH = 2;
-const SMART_HAND_ATTEMPTS = 96;
 const MAX_PLACEMENTS_PER_PIECE = 96;
 
 function clamp(value: number, min: number, max: number): number {
@@ -421,6 +426,273 @@ function scoreFuture(board: Board, hand: Hand, depth: number): number {
   return bestScore;
 }
 
+function getPieceCellSet(piece: PieceData): string[] {
+  "worklet";
+  const cells: string[] = [];
+  for (let y = 0; y < piece.matrix.length; y++) {
+    for (let x = 0; x < piece.matrix[0].length; x++) {
+      if (piece.matrix[y][x] === 1) {
+        cells.push(`${x}:${y}`);
+      }
+    }
+  }
+  return cells;
+}
+
+function pieceHasLocalCell(pieceCells: string[], x: number, y: number): boolean {
+  "worklet";
+  const key = `${x}:${y}`;
+  for (let i = 0; i < pieceCells.length; i++) {
+    if (pieceCells[i] === key) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function scorePocketFit(
+  board: Board,
+  piece: PieceData,
+  dropX: number,
+  dropY: number,
+  simulated: SimulatedMove,
+): number {
+  "worklet";
+  const boardLength = board.length;
+  const pieceCells = getPieceCellSet(piece);
+  const pieceBlocks = pieceCells.length;
+  let perimeter = 0;
+  let contacts = 0;
+  let emptyAround = 0;
+
+  for (let y = 0; y < piece.matrix.length; y++) {
+    for (let x = 0; x < piece.matrix[0].length; x++) {
+      if (piece.matrix[y][x] !== 1) {
+        continue;
+      }
+
+      const neighbors = [
+        { x: x + 1, y },
+        { x: x - 1, y },
+        { x, y: y + 1 },
+        { x, y: y - 1 },
+      ];
+
+      for (let i = 0; i < neighbors.length; i++) {
+        const local = neighbors[i];
+        if (pieceHasLocalCell(pieceCells, local.x, local.y)) {
+          continue;
+        }
+
+        perimeter++;
+        const boardX = dropX + local.x;
+        const boardY = dropY + local.y;
+
+        if (
+          boardX < 0 ||
+          boardY < 0 ||
+          boardX >= boardLength ||
+          boardY >= boardLength
+        ) {
+          contacts += 0.8;
+        } else if (board[boardY][boardX].blockType === BoardBlockType.FILLED) {
+          contacts += 1;
+        } else {
+          emptyAround++;
+        }
+      }
+    }
+  }
+
+  if (perimeter === 0) {
+    return 0;
+  }
+
+  const contactRatio = contacts / perimeter;
+  let score = contactRatio * pieceBlocks * 18;
+
+  if (contactRatio >= 0.62 && emptyAround <= pieceBlocks + 1) {
+    score += 52;
+  } else if (contactRatio >= 0.48) {
+    score += 24;
+  }
+
+  if (simulated.linesCleared > 0) {
+    score += simulated.linesCleared * simulated.linesCleared * 44;
+  }
+
+  return score;
+}
+
+interface ScoredPiece {
+  piece: PieceData;
+  score: number;
+  placements: number;
+  bestMove: SimulatedMove | null;
+}
+
+function createPieceFromTemplate(index: number): PieceData {
+  "worklet";
+  const template = piecesData[index];
+  return {
+    matrix: template.matrix,
+    distributionPoints: template.distributionPoints,
+    assetId: getRandomPieceAssetIdWorklet(template.assetId),
+    color: getRandomPieceColorWorklet(),
+  };
+}
+
+function clonePieceWithFreshColor(piece: PieceData): PieceData {
+  "worklet";
+  return {
+    matrix: piece.matrix,
+    distributionPoints: piece.distributionPoints,
+    assetId: piece.assetId,
+    color: getRandomPieceColorWorklet(),
+  };
+}
+
+function scorePiecePlacement(
+  board: Board,
+  piece: PieceData,
+  placement: Placement,
+): { score: number; simulated: SimulatedMove } {
+  "worklet";
+  const simulated = simulateMove(board, piece, placement.x, placement.y);
+  const metrics = getBoardShapeMetrics(simulated.board, []);
+  const pocket = scorePocketFit(
+    board,
+    piece,
+    placement.x,
+    placement.y,
+    simulated,
+  );
+  const lines = simulated.linesCleared;
+  const clearScore = lines * lines * 260 + simulated.clearedBlocks * 8;
+  const cleanScore =
+    metrics.emptyBlocks * 1.4 +
+    metrics.largestEmptyRegion * 2.2 -
+    metrics.fragmentedEmpty * 1.2;
+  const setupScore = metrics.nearLines * 5;
+  const pocketScore = pocket * 1.55;
+  const smallSafetyBonus = getBlockCount(piece) <= 3 ? 14 : 0;
+
+  return {
+    score:
+      clearScore +
+      pocketScore +
+      cleanScore +
+      setupScore +
+      smallSafetyBonus +
+      getBlockCount(piece),
+    simulated,
+  };
+}
+
+function scorePieceForBoard(board: Board, piece: PieceData): ScoredPiece {
+  "worklet";
+  const placements = getPlacementsForPiece(board, piece);
+  if (placements.length === 0) {
+    return {
+      piece,
+      score: -999999,
+      placements: 0,
+      bestMove: null,
+    };
+  }
+
+  let bestScore = -999999;
+  let bestMove: SimulatedMove | null = null;
+
+  for (let i = 0; i < placements.length; i++) {
+    const scored = scorePiecePlacement(board, piece, placements[i]);
+    if (scored.score > bestScore) {
+      bestScore = scored.score;
+      bestMove = scored.simulated;
+    }
+  }
+
+  return {
+    piece,
+    score: bestScore + Math.min(placements.length, 24) * 2.4,
+    placements: placements.length,
+    bestMove,
+  };
+}
+
+function scoreAllPiecesForBoard(board: Board): ScoredPiece[] {
+  "worklet";
+  const scored: ScoredPiece[] = [];
+  for (let i = 0; i < piecesData.length; i++) {
+    scored.push(scorePieceForBoard(board, createPieceFromTemplate(i)));
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
+
+function pickFromBand(
+  scored: ScoredPiece[],
+  lowerPercentile: number,
+  upperPercentile: number,
+): PieceData | null {
+  "worklet";
+  const available = scored.filter((candidate) => candidate.score > -999999);
+  if (available.length === 0) {
+    return null;
+  }
+
+  const lower = clamp(lowerPercentile, 0, 1);
+  const upper = clamp(Math.max(lower, upperPercentile), 0, 1);
+  const lastIndex = available.length - 1;
+  const start = Math.round(lastIndex * lower);
+  const end = Math.round(lastIndex * upper);
+  const index = start + Math.floor(Math.random() * Math.max(1, end - start + 1));
+
+  return clonePieceWithFreshColor(available[index].piece);
+}
+
+function pickWeightedSafeRandom(scored: ScoredPiece[]): PieceData | null {
+  "worklet";
+  const available = scored.filter((candidate) => candidate.score > -999999);
+  if (available.length === 0) {
+    return null;
+  }
+
+  const limit = Math.max(1, Math.ceil(available.length * 0.75));
+  let totalWeight = 0;
+  for (let i = 0; i < limit; i++) {
+    totalWeight += available[i].piece.distributionPoints;
+  }
+
+  let roll = Math.random() * totalWeight;
+  for (let i = 0; i < limit; i++) {
+    roll -= available[i].piece.distributionPoints;
+    if (roll <= 0) {
+      return clonePieceWithFreshColor(available[i].piece);
+    }
+  }
+
+  return clonePieceWithFreshColor(available[0].piece);
+}
+
+function pushIfPiece(hand: Hand, piece: PieceData | null, handSize: number) {
+  "worklet";
+  if (piece != null && hand.length < handSize) {
+    hand.push(piece);
+  }
+}
+
+function shuffleHand(hand: Hand): Hand {
+  "worklet";
+  for (let i = hand.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = hand[i];
+    hand[i] = hand[j];
+    hand[j] = temp;
+  }
+  return hand;
+}
+
 function scoreFirstMove(
   board: Board,
   hand: Hand,
@@ -544,14 +816,6 @@ export function evaluateMoveQuality(
   };
 }
 
-function scoreHandCandidate(board: Board, hand: Hand): number {
-  "worklet";
-  if (!canPlaceAnyPiece(board, hand)) {
-    return -999999;
-  }
-  return scoreFuture(board, hand, 1);
-}
-
 function getBoardDanger(board: Board): number {
   "worklet";
   return getBoardShapeMetrics(board, []).danger;
@@ -559,27 +823,38 @@ function getBoardDanger(board: Board): number {
 
 export function createSmartHandWorklet(board: Board, handSize: number): Hand {
   "worklet";
-  const candidates: { hand: Hand; score: number }[] = [];
+  const danger = getBoardDanger(board);
+  const currentScores = scoreAllPiecesForBoard(board);
+  const gift = pickFromBand(
+    currentScores,
+    0,
+    danger > 0.72 ? 0.18 : danger > 0.46 ? 0.26 : 0.34,
+  );
+  const giftScore =
+    gift == null ? null : scorePieceForBoard(board, gift);
+  const supportBoard = giftScore?.bestMove?.board ?? board;
+  const supportScores = scoreAllPiecesForBoard(supportBoard);
+  const support = pickFromBand(
+    supportScores,
+    0,
+    danger > 0.72 ? 0.22 : 0.42,
+  );
+  const safeRandom = pickWeightedSafeRandom(currentScores);
+  const hand: Hand = [];
 
-  for (let i = 0; i < SMART_HAND_ATTEMPTS; i++) {
-    const hand = createRandomHandWorklet(handSize);
-    const score = scoreHandCandidate(board, hand);
-    if (score > -999999) {
-      candidates.push({ hand, score });
-    }
+  pushIfPiece(hand, gift, handSize);
+  pushIfPiece(hand, support, handSize);
+  pushIfPiece(hand, safeRandom, handSize);
+
+  let fillAttempts = 0;
+  while (hand.length < handSize && fillAttempts < handSize * 2) {
+    fillAttempts++;
+    pushIfPiece(hand, pickWeightedSafeRandom(currentScores), handSize);
   }
 
-  if (candidates.length === 0) {
+  if (hand.length === 0 || !canPlaceAnyPiece(board, hand)) {
     return createRandomHandWorklet(handSize);
   }
 
-  candidates.sort((a, b) => a.score - b.score);
-
-  const danger = getBoardDanger(board);
-  const basePercentile = danger > 0.72 ? 0.82 : danger > 0.46 ? 0.64 : 0.48;
-  const jitter = (Math.random() - 0.5) * 0.18;
-  const percentile = clamp(basePercentile + jitter, 0, 1);
-  const index = Math.round((candidates.length - 1) * percentile);
-
-  return candidates[index].hand;
+  return shuffleHand(hand);
 }

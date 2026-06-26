@@ -1,247 +1,97 @@
-import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
-import Animated, { BounceInUp, Easing, FadeIn, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
-import { MenuStateType, useSetAppState } from "@/hooks/useAppState";
-import { cssColors } from "@/constants/Color";
-import { GameModeType } from '@/hooks/useAppState';
-import { PieceData } from "@/constants/Piece";
-import { PieceView } from "./PieceView";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { uiColors } from "@/constants/Color";
+import { GameModeType, MenuStateType, useAppState } from "@/hooks/useAppState";
 
-const logoBPiece: PieceData = {
-	matrix: [
-		[1, 1, 1, 0],
-		[1, 0, 0, 1],
-		[1, 1, 1, 0],
-		[1, 0, 0, 1],
-		[1, 1, 1, 0]
-	],
-	distributionPoints: 0,
-	color: { r: 255, g: 51, b: 90 }
-};
-const logoNPiece: PieceData = {
-	matrix: [
-		[1, 1, 1, 1],
-		[1, 0, 0, 1],
-		[1, 0, 0, 1],
-		[1, 0, 0, 1]
-	],
-	distributionPoints: 0,
-	color: { r: 255, g: 0, b: 255 }
-};
+export default function MainMenu() {
+	const [appState, setAppState, appendAppState] = useAppState();
+	const pausedGameState = appState.current === MenuStateType.MENU ? appState.containsGameMode() : undefined;
 
-function BlockerinoLogo({blockSize, style}: {blockSize: number, style: ViewStyle}) {
-	const nTop = blockSize * 80/30
-	const nLeft = blockSize * 50/30
-	return <View style={[{width: blockSize * 4 + nLeft, height: blockSize * 4 + nTop}, style]}>
-		<PieceView style={{boxShadow: '5px 5px 50px #000000', backgroundColor: 'rgba(0, 0, 0, 0.6)'}} piece={logoBPiece} blockSize={blockSize}></PieceView>
-		<PieceView style={{transform: [{ translateX: nLeft }, { translateY: nTop }], position: 'absolute', zIndex: -1}} piece={logoNPiece} blockSize={blockSize}></PieceView>
-	</View>
-}
-
-export default function MainMenu({
-	isTelegramMiniApp,
-	telegramUserLabel,
-}: {
-	isTelegramMiniApp?: boolean;
-	telegramUserLabel?: string | null;
-}) {
-	const [ _, appendAppState ] = useSetAppState();
-	const footerText = isTelegramMiniApp
-		? `mini app${telegramUserLabel ? ` · ${telegramUserLabel}` : ""}`
-		: "dev build";
-	
-	return <View style={styles.container}>
-
-		<BlockerinoLogo style={{position: 'absolute', bottom: 10, left: 10}} blockSize={5}></BlockerinoLogo>
-		<Animated.Text entering={BounceInUp.duration(800)} style={[styles.logo]}>
-			construct blast
-		</Animated.Text>
-
-		<MainButton
-			onClick={() => {
-				appendAppState(GameModeType.Classic);
-			}}
-			backgroundColor={cssColors.brightNiceRed}
-			title={"Играть"}
-			flavorText={"8x8 · умный рандом · dev оценка хода"}
-			idleBounce={true}
-		/>
-		<MainButton onClick = {() => {
-			appendAppState(MenuStateType.HIGH_SCORES)
-		}} backgroundColor={cssColors.pink} title={"Рекорды"} />
-		<MainButton onClick = {() => {
-			appendAppState(MenuStateType.OPTIONS)
-		}} backgroundColor={cssColors.green} title={"Настройки"} />
-
-		<Animated.Text entering={FadeIn} style={styles.footer}>
-			{footerText}
-		</Animated.Text>
-	</View>
-}
-
-function MainButton({
-	style,
-	textStyle,
-	backgroundColor,
-	title,
-	flavorText,
-	idleBounce,
-	idleBounceRotate,
-	onClick,
-}: {
-	style?: any;
-	textStyle?: any;
-	backgroundColor: string;
-	title: string;
-	flavorText?: string;
-	idleBounce?: boolean;
-	idleBounceRotate?: boolean;
-	onClick?: () => void;
-}) {
-	const scale = useSharedValue(1);
-	const idleAnimTranslateY = useSharedValue(0);
-	const hoverAnimTranslateY = useSharedValue(0);
-	const translateY = useDerivedValue(() => {
-		return idleAnimTranslateY.value + hoverAnimTranslateY.value; 
-	});
-	const rotationDeg = useSharedValue(0);
-
-	const animatedStyle = useAnimatedStyle(() => {
-		return {
-			transform: [
-				{ translateY: translateY.value },
-				{ rotate: `${rotationDeg.value}deg` },
-				{ scale: scale.value }
-			]
-		};
-	});
-
-	useEffect(() => {
-		const idleBounceTotalTime = 3700;
-		if (idleBounce) {
-			idleAnimTranslateY.value = withRepeat(
-				withSequence(
-					withDelay(2500, withTiming(-30, { duration: 200 })),
-					withTiming(0, { duration: 1000, easing: Easing.bounce }),
-				),
-				1000,
-			);
-		} else if (idleBounceRotate) {
-			const amplitude = 10;
-			const steps = 5;
-			const stepDuration = 160;
-			const anims = [];
-			for (let i = 0; i < steps; i++) {
-				let deg;
-				if (i == steps - 1) {
-					deg = 0;
-				} else {
-					deg = i % 2 == 0 ? -amplitude : amplitude;
-				}
-				anims.push(
-					withTiming(deg, { duration: stepDuration, easing: Easing.cubic }),
-				);
-			}
-
-			rotationDeg.value = withRepeat(
-				withDelay(
-					idleBounceTotalTime - stepDuration * steps,
-					withSequence(...anims),
-				),
-				1000,
-			);
+	const startOrResumeGame = () => {
+		if (pausedGameState) {
+			setAppState(pausedGameState);
+			return;
 		}
-	}, []);
 
-	const onPress = () => {
-		scale.value = withSequence(withTiming(1.25, { duration: 200 }), withTiming(1, { duration: 200 }));
-		if (onClick)
-			onClick();
-	}
-	
-	const onHoverIn = () => {
-		hoverAnimTranslateY.value = withSpring(-10, {duration: 400});
-	}
-	
-	const onHoverOut = () => {
-		hoverAnimTranslateY.value = withSpring(0, {duration: 400});
-	}
-	
+		appendAppState(GameModeType.Classic);
+	};
+
 	return (
-		<Pressable style={styles.buttonPressable} onPress={onPress} onHoverIn={onHoverIn} onHoverOut={onHoverOut}>
-			<Animated.View
-				key={title}
-				style={[
-					styles.button,
-					{ backgroundColor },
-					animatedStyle,
-					style ? style : {},
-				]}
-			>
-				<Text style={[styles.buttonText, textStyle ? textStyle : {}]}>
-					{title}
-				</Text>
-				{flavorText && (
-					<Text style={[styles.buttonFlavorText, textStyle ? textStyle : {}]}>
-						{flavorText}
-					</Text>
-				)}
-			</Animated.View>
+		<View style={styles.screen}>
+			<Image
+				source={require("@/assets/icons/construct-logo.png")}
+				resizeMode="contain"
+				style={styles.logo}
+			/>
+			<View style={styles.buttonStack}>
+				<MenuButton
+					title="Играть"
+					color={uiColors.play}
+					onPress={startOrResumeGame}
+				/>
+				<MenuButton
+					title="Лидерборд"
+					color={uiColors.leaderboard}
+					onPress={() => appendAppState(MenuStateType.HIGH_SCORES)}
+				/>
+				<MenuButton
+					title="Настройки"
+					color={uiColors.settings}
+					onPress={() => appendAppState(MenuStateType.OPTIONS)}
+				/>
+			</View>
+		</View>
+	);
+}
+
+function MenuButton({ title, color, onPress }: { title: string; color: string; onPress: () => void }) {
+	return (
+		<Pressable
+			onPress={onPress}
+			style={({ pressed }) => [styles.button, { backgroundColor: color }, pressed ? styles.pressed : null]}
+		>
+			<Text style={styles.buttonText}>{title}</Text>
 		</Pressable>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: {
+	screen: {
 		flex: 1,
+		width: "100%",
+		backgroundColor: uiColors.background,
 		alignItems: "center",
 		justifyContent: "center",
-		width: '100%',
-		height: '100%'
 	},
 	logo: {
-		fontFamily: "Silkscreen",
-		fontSize: 34,
-		color: "#FFF",
-		marginBottom: 50,
-		textAlign: "center",
-		width: "92%",
+		width: 124,
+		maxWidth: "38%",
+		height: 120,
+		marginBottom: 42,
+	},
+	buttonStack: {
+		width: 354,
+		maxWidth: "78%",
+		alignItems: "stretch",
+		justifyContent: "center",
 	},
 	button: {
-		width: "100%",
-		height: "100%",
-		justifyContent: "center",
-		alignItems: "center",
-		marginBottom: 20,
+		height: 79,
 		borderRadius: 8,
-		borderWidth: 2
-	},
-	buttonPressable: {
-		width: "80%",
-		height: 60,
-		justifyContent: "center",
 		alignItems: "center",
-		marginBottom: 20,
-		borderRadius: 10,
-		maxWidth: 420
+		justifyContent: "center",
+		marginBottom: 21,
+	},
+	pressed: {
+		opacity: 0.82,
+		transform: [{ translateY: 1 }],
 	},
 	buttonText: {
-		fontFamily: "Silkscreen",
-		fontSize: 24,
-		color: "black",
-		textAlign: 'center'
-	},
-	buttonFlavorText: {
-		fontFamily: "Silkscreen",
-		fontSize: 14,
-		color: "rgb(30, 30, 30)",
-		textAlign: 'center'
-	},
-	footer: {
-		fontFamily: "Silkscreen",
-		fontSize: 16,
-		color: "#555",
-		position: "absolute",
-		bottom: 20,
+		color: uiColors.text,
+		fontFamily: "GraphikLC-Bold",
+		fontSize: 34,
+		lineHeight: 40,
+		fontWeight: "700",
+		letterSpacing: -1.02,
+		textAlign: "center",
 	},
 });

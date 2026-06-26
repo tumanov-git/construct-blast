@@ -8,10 +8,9 @@ User=www-data
 WorkingDirectory=/opt/construct-blast-leaderboard
 Environment=PORT=8022
 Environment=DATA_FILE=/var/lib/construct-blast/leaderboard.json
-Environment=TEST_START_MS=1
 Environment=TELEGRAM_AUTH_MAX_AGE_SECONDS=86400
-Environment=MAX_SCORE=1000000
-EnvironmentFile=/etc/construct-blast/leaderboard.env
+EnvironmentFile=-/etc/construct-blast/construct-blast.env
+EnvironmentFile=-/etc/construct-blast/leaderboard.env
 ExecStart=/usr/local/bin/node /opt/construct-blast-leaderboard/leaderboard-server.js
 Restart=always
 RestartSec=3

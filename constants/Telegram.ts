@@ -18,14 +18,30 @@ export type TelegramWebApp = {
 	};
 	colorScheme?: "light" | "dark";
 	isExpanded?: boolean;
+	viewportHeight?: number;
+	viewportStableHeight?: number;
 	ready: () => void;
 	expand: () => void;
+	onEvent?: (eventType: "viewportChanged", callback: () => void) => void;
+	offEvent?: (eventType: "viewportChanged", callback: () => void) => void;
 	setHeaderColor?: (color: string) => void;
 	setBackgroundColor?: (color: string) => void;
 	enableClosingConfirmation?: () => void;
 	disableVerticalSwipes?: () => void;
+	requestFullscreen?: () => void;
+	exitFullscreen?: () => void;
+	lockOrientation?: () => void;
+	unlockOrientation?: () => void;
+	HapticFeedback?: {
+		impactOccurred?: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
+		selectionChanged?: () => void;
+		notificationOccurred?: (type: "error" | "success" | "warning") => void;
+	};
 	BackButton?: {
+		show: () => void;
 		hide: () => void;
+		onClick?: (callback: () => void) => void;
+		offClick?: (callback: () => void) => void;
 	};
 	MainButton?: {
 		hide: () => void;
@@ -103,6 +119,8 @@ export async function initializeTelegramWebApp(): Promise<TelegramWebApp | null>
 	try {
 		webApp.ready();
 		webApp.expand();
+		webApp.requestFullscreen?.();
+		webApp.lockOrientation?.();
 		webApp.disableVerticalSwipes?.();
 		webApp.setHeaderColor?.("#050505");
 		webApp.setBackgroundColor?.("#050505");

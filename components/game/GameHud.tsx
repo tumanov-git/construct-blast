@@ -1,276 +1,143 @@
-import { useEffect, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
-import Animated, { SharedValue, interpolateColor, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated"
-import { Hand } from "@/constants/Hand";
-import { GameModeType, MenuStateType, useAppState } from "@/hooks/useAppState";
+import { useEffect, useState } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
+import Animated, { SharedValue, runOnJS, useAnimatedReaction, useSharedValue, withTiming } from "react-native-reanimated";
+import { GameModeType } from "@/hooks/useAppState";
 import { getHighScores } from "@/constants/Storage";
-import { colorToHex } from "@/constants/Color";
-import { MoveQualityReport } from "@/constants/GameIntelligence";
-
-const comboBarGoodColor = colorToHex({r: 0, g: 255, b: 0});
-const comboBarBadColor = colorToHex({r: 255, g: 51, b: 51});
+import { uiColors } from "@/constants/Color";
 
 interface GameHudProps {
-	score: SharedValue<number>,
-	combo: SharedValue<number>,
-	lastBrokenLine: SharedValue<number>,
-	hand: SharedValue<Hand>
-	moveQuality?: MoveQualityReport | null
+	score: SharedValue<number>;
+	compact?: boolean;
 }
 
-export function StatsGameHud({ score, combo, lastBrokenLine, hand, moveQuality}: GameHudProps) {
+export function StatsGameHud({ score, compact = false }: GameHudProps) {
 	const [scoreText, setScoreText] = useState("0");
-	const scoreAnimValue = useSharedValue(0); // stores the score, used to interpolate the number for animation
+	const scoreAnimValue = useSharedValue(0);
 
-	useAnimatedReaction(() => {
-		return score.value;
-	}, (current, prev) => {
-		scoreAnimValue.value = withTiming(current, { duration: 200 });
-	})
-	
-	useAnimatedReaction(() => {
-		return scoreAnimValue.value
-	}, (current, _prev) => {
-		runOnJS(setScoreText)(String(Math.floor(current)));
-	})
+	useAnimatedReaction(
+		() => score.value,
+		(current) => {
+			scoreAnimValue.value = withTiming(current, { duration: 160 });
+		},
+	);
 
-	return <>
-		<View style={styles.hudContainer}>
-			<View style={styles.scoreContainer}>
-				<Text style={{
-					color: 'white',
-					fontFamily: 'Silkscreen',
-					fontSize: 50,
-					fontWeight: '100',
-					textShadowColor: 'rgb(0, 0, 0)',
-					textShadowOffset: { width: 3, height: 3 },
-					textShadowRadius: 10,
-					alignSelf: 'center'
-				}}>{scoreText}</Text>
-			</View>
-			<ComboBar lastBrokenLine={lastBrokenLine} handSize={hand.value.length}></ComboBar>
-			<MoveQualityDevPanel moveQuality={moveQuality ?? null}></MoveQualityDevPanel>
-		</View>
-	</>
-}
+	useAnimatedReaction(
+		() => scoreAnimValue.value,
+		(current) => {
+			runOnJS(setScoreText)(String(Math.floor(current)));
+		},
+	);
 
-function getMoveQualityColor(moveQuality: MoveQualityReport | null): string {
-	if (moveQuality == null) {
-		return "rgb(95, 95, 95)";
-	}
-	if (moveQuality.tier === "best") {
-		return "rgb(0, 255, 120)";
-	}
-	if (moveQuality.tier === "great") {
-		return "rgb(139, 255, 64)";
-	}
-	if (moveQuality.tier === "good") {
-		return "rgb(255, 219, 66)";
-	}
-	if (moveQuality.tier === "ok") {
-		return "rgb(255, 150, 64)";
-	}
-	return "rgb(255, 65, 65)";
-}
-
-function getMoveQualityLabel(moveQuality: MoveQualityReport | null): string {
-	if (moveQuality == null) {
-		return "DEV: ход еще не оценен";
-	}
-	const labels = {
-		best: "лучший",
-		great: "очень сильный",
-		good: "хороший",
-		ok: "так себе",
-		miss: "плохой",
-	};
-	const mobilityDelta = moveQuality.after.mobility - moveQuality.before.mobility;
-	const regionDelta = moveQuality.after.largestEmptyRegion - moveQuality.before.largestEmptyRegion;
-	const fragmentDelta = moveQuality.after.fragmentedEmpty - moveQuality.before.fragmentedEmpty;
-	const dangerDelta = Math.round((moveQuality.after.danger - moveQuality.before.danger) * 100);
-
-	return [
-		`DEV ${labels[moveQuality.tier]} · #${moveQuality.rank}/${moveQuality.totalMoves} · ${moveQuality.rating}/100 · best ${formatSigned(moveQuality.scoreDeltaFromBest)}`,
-		`score ${moveQuality.moveScore}/${moveQuality.bestScore} · lines ${moveQuality.linesCleared} · clear ${moveQuality.clearedBlocks}`,
-		`mob ${formatSigned(mobilityDelta)}=${moveQuality.after.mobility} · reg ${formatSigned(regionDelta)}=${moveQuality.after.largestEmptyRegion} · frag ${formatSigned(fragmentDelta)} · risk ${formatSigned(dangerDelta)}`,
-	].join("\n");
-}
-
-function formatSigned(value: number): string {
-	if (value > 0) {
-		return `+${value}`;
-	}
-	return String(value);
-}
-
-function MoveQualityDevPanel({ moveQuality }: { moveQuality: MoveQualityReport | null }) {
 	return (
-		<View style={styles.moveQualityContainer}>
-			<View style={[styles.moveQualityDot, { backgroundColor: getMoveQualityColor(moveQuality) }]} />
-			<Text style={styles.moveQualityText}>{getMoveQualityLabel(moveQuality)}</Text>
+		<View style={[styles.scoreBlock, compact && styles.compactScoreBlock]}>
+			<Text style={[styles.score, compact && styles.compactScore]}>{scoreText}</Text>
 		</View>
 	);
 }
 
-interface ComboBarProps {
-	lastBrokenLine: SharedValue<number>,
-	handSize: number
-};
-
-function ComboBar({ lastBrokenLine, handSize }: ComboBarProps) {
-	const fillPercentage = useSharedValue(100);
-	
-	useAnimatedReaction(() => {
-		return lastBrokenLine.value
-	}, (_cur, _prev) => {
-		'worklet';
-		fillPercentage.value = withSpring((1 - lastBrokenLine.value / handSize) * 100, {
-			duration: 800,
-			overshootClamping: true
-		})
-	})
-	const animatedStyle = useAnimatedStyle(() => {
-		return {
-			width: `${fillPercentage.value}%`,
-			backgroundColor: interpolateColor(fillPercentage.value / 100, [0, 1/5, 1], ['transparent', comboBarBadColor, comboBarGoodColor]),
-			transform: [
-				{
-					scale: lastBrokenLine.value == handSize - 1 ? withRepeat(
-						withDelay(500, withRepeat(withSequence(withTiming(1.1), withTiming(1)), 2))
-					, 1000) : 1
-				}
-			]
-		};
-	}, [fillPercentage]);
-
-	return (
-		<View style={styles.comboBarParent}>
-			<Animated.View style={[styles.comboBar, animatedStyle]} />
-		</View>
-	);
-};
-
-export function StickyGameHud({gameMode, score}: {gameMode: GameModeType, score: SharedValue<number>}) {
-	const [ highestScore, setHighestScore ] = useState(0);
-	const [ scoreState, setScoreState ] = useState(score.value);
+export function StickyGameHud({
+	gameMode,
+	score,
+	compact = false,
+}: {
+	gameMode: GameModeType;
+	score: SharedValue<number>;
+	compact?: boolean;
+}) {
+	const [highestScore, setHighestScore] = useState(0);
+	const [scoreState, setScoreState] = useState(score.value);
 
 	useEffect(() => {
 		getHighScores(gameMode, true, true).then((highScores) => {
-			if (highScores.length == 0)
-				return;
-			setHighestScore(highScores[0].score);
+			if (highScores.length > 0) {
+				setHighestScore(highScores[0].score);
+			}
 		});
-	}, [setHighestScore]);
-	
-	useAnimatedReaction(() => {
-		return score.value;
-	}, (cur, prev) => {
-		runOnJS(setScoreState)(score.value);
-	});
+	}, [gameMode]);
 
-	return <>
-		<Text style={styles.highScoreLabel}>{"👑" + Math.max(scoreState, highestScore)}</Text>
-		<SettingsButton></SettingsButton>
-	</>
-}
+	useAnimatedReaction(
+		() => score.value,
+		(current) => {
+			runOnJS(setScoreState)(current);
+		},
+	);
 
-function SettingsButton() {
-	const [_appState, _setAppState, appendAppState ] = useAppState();
+	const active = scoreState >= highestScore;
+	const record = Math.max(scoreState, highestScore);
 
-	return <Pressable onPress={() => {appendAppState(MenuStateType.OPTIONS)}} style={styles.settingsButton}>
-		<Text style={styles.settingsEmoji}>
-			{"⚙️"}
-		</Text>
-	</Pressable>
+	return (
+		<Animated.View style={[styles.recordRow, compact && styles.compactRecordRow]}>
+			<Image
+				source={
+					active
+						? require("@/assets/icons/crown_active.svg")
+						: require("@/assets/icons/crown_inactive.svg")
+				}
+				resizeMode="contain"
+				style={[styles.crown, compact && styles.compactCrown]}
+			/>
+			<Text style={[styles.record, compact && styles.compactRecord, { color: active ? uiColors.recordActive : uiColors.recordInactive }]}>
+				{record}
+			</Text>
+		</Animated.View>
+	);
 }
 
 const styles = StyleSheet.create({
-	settingsButton: {
-		width: 50,
-		height: 50,
-		borderRadius: 18,
-		backgroundColor: 'rgba(20, 20, 20, 0.8)',
-		justifyContent: 'center',
-		alignItems: 'center',
-		position: 'absolute',
-		alignSelf: 'flex-end',
-		zIndex: 1000,
-		top: 50,
-		right: 50
-	},
-	settingsEmoji: {
-		color: 'white',
-		fontSize: 30
-	},
-	highScoreLabel: {
-		color: 'rgb(240, 175, 12)',
-		fontFamily: 'Silkscreen',
-		fontSize: 35,
-		fontWeight: '100',
-		position: 'absolute',
-		top: 50,
-		left: 50
-	},
-	hudContainer: {
-		width: '100%',
-		height: 146,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	scoreContainer: {
-		width: '100%',
-		height: 54,
-		justifyContent: 'center',
-		alignItems: 'center',
-		marginTop: 14,
-		marginBottom: 14,
-	},
-	comboBarParent: {
-		width: '100%',
-		height: 16,
-		borderWidth: 2,
-		borderRadius: 10,
-		borderColor: 'gray',
-		zIndex: 100,
-	},
-	comboBar: {
-		height: 12,
-		borderRadius: 10,
-		backgroundColor: 'blue',
-		zIndex: 99,
-		position: 'absolute'
-	},
-	moveQualityContainer: {
-		minHeight: 52,
-		width: "100%",
-		marginTop: 8,
+	recordRow: {
 		flexDirection: "row",
-		alignItems: "flex-start",
+		alignItems: "center",
 		justifyContent: "center",
-		paddingHorizontal: 8,
+		marginTop: 78,
+		marginBottom: 12,
 	},
-	moveQualityDot: {
-		width: 10,
-		height: 10,
-		borderRadius: 5,
+	compactRecordRow: {
+		marginTop: 54,
+		marginBottom: 6,
+	},
+	crown: {
+		width: 34,
+		height: 34,
+		marginRight: 10,
+	},
+	compactCrown: {
+		width: 30,
+		height: 30,
 		marginRight: 8,
-		marginTop: 3,
 	},
-	moveQualityText: {
-		color: "rgb(180, 180, 180)",
-		fontFamily: "Silkscreen",
-		fontSize: 9,
-		lineHeight: 12,
-		textAlign: "center",
-		flexShrink: 1,
+	record: {
+		fontFamily: "GraphikLC-Bold",
+		fontSize: 25,
+		lineHeight: 30,
+		fontWeight: "700",
+		letterSpacing: -0.75,
 	},
-	hudLabel: {
-		color: 'white',
-		fontFamily: 'Silkscreen',
-		fontWeight: '900',
-		fontSize: 30,
-		marginLeft: 2,
-		alignSelf: 'flex-start',
-		position: 'absolute',
-	}
-})
+	compactRecord: {
+		fontSize: 23,
+		lineHeight: 28,
+		letterSpacing: -0.69,
+	},
+	scoreBlock: {
+		alignItems: "center",
+		justifyContent: "center",
+		marginBottom: 26,
+		minHeight: 62,
+	},
+	compactScoreBlock: {
+		marginBottom: 12,
+		minHeight: 54,
+	},
+	score: {
+		color: uiColors.text,
+		fontFamily: "GraphikLC-Bold",
+		fontSize: 58,
+		lineHeight: 64,
+		fontWeight: "700",
+		letterSpacing: -1.74,
+	},
+	compactScore: {
+		fontSize: 52,
+		lineHeight: 56,
+		letterSpacing: -1.56,
+	},
+});

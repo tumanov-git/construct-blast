@@ -1,10 +1,19 @@
-export const cssColors = {
-    brightNiceRed: "#FF3333",
-    pink: "#FF00FF",
-    green: "#00FF00",
-    pitchBlack: "#000000",
-    spaceGray: "rgb(90, 90, 90)"
-}
+export const uiColors = {
+    background: "#202020",
+    play: "#EA4E1B",
+    leaderboard: "#FFC601",
+    settings: "#4585C3",
+    recordActive: "#FFC601",
+    recordInactive: "#8C6D00",
+    boardCell: "#282E33",
+    boardInner: "#141C22",
+    boardStroke: "#3D3D3D",
+    text: "#FFFFFF",
+    textMuted: "rgba(255, 255, 255, 0.68)",
+    overlay: "rgba(32, 32, 32, 0.88)",
+    panel: "#282828",
+    panelLine: "rgba(255, 255, 255, 0.15)",
+};
 
 export interface Color {
     r: number,

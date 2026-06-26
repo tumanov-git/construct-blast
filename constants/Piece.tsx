@@ -4,6 +4,7 @@ export interface PieceData {
 	matrix: number[][];
 	distributionPoints: number;
 	color: Color;
+	assetId: number;
 }
 
 // same as piecedata but with no color
@@ -11,12 +12,14 @@ export interface PieceData {
 // so we will use this one to store piece shape and info
 interface PieceDataSaved {
 	matrix: number[][];
-	distributionPoints: number
+	distributionPoints: number;
+	assetId: number;
 }
 
 export const piecesData: PieceDataSaved[] = [
 	// L-shape
 	{
+		assetId: 1,
 		matrix: [
 			[1, 0, 0],
 			[1, 1, 1],
@@ -25,6 +28,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 2,
 		matrix: [
 			[1, 1],
 			[1, 0],
@@ -34,6 +38,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 3,
 		matrix: [
 			[1, 1, 1],
 			[0, 0, 1],
@@ -42,6 +47,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 4,
 		matrix: [
 			[0, 1],
 			[0, 1],
@@ -51,6 +57,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 5,
 		matrix: [
 			[0, 0, 1],
 			[1, 1, 1],
@@ -59,6 +66,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 6,
 		matrix: [
 			[1, 0],
 			[1, 0],
@@ -68,6 +76,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 7,
 		matrix: [
 			[1, 1, 1],
 			[1, 0, 0],
@@ -76,6 +85,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 8,
 		matrix: [
 			[1, 1],
 			[0, 1],
@@ -86,6 +96,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// Triangle shape
 	{
+		assetId: 9,
 		matrix: [
 			[1, 1, 1],
 			[0, 1, 0],
@@ -94,6 +105,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 10,
 		matrix: [
 			[1, 0],
 			[1, 1],
@@ -103,6 +115,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 11,
 		matrix: [
 			[0, 1, 0],
 			[1, 1, 1],
@@ -111,6 +124,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 12,
 		matrix: [
 			[0, 1],
 			[1, 1],
@@ -121,6 +135,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// Z/S shape
 	{
+		assetId: 13,
 		matrix: [
 			[0, 1, 1],
 			[1, 1, 0],
@@ -129,6 +144,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 14,
 		matrix: [
 			[1, 0],
 			[1, 1],
@@ -138,6 +154,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 15,
 		matrix: [
 			[1, 1, 0],
 			[0, 1, 1],
@@ -146,6 +163,7 @@ export const piecesData: PieceDataSaved[] = [
 
 	},
 	{
+		assetId: 16,
 		matrix: [
 			[0, 1],
 			[1, 1],
@@ -156,6 +174,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 3x3
 	{
+		assetId: 17,
 		matrix: [
 			[1, 1, 1],
 			[1, 1, 1],
@@ -166,6 +185,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 2x2
 	{
+		assetId: 18,
 		matrix: [
 			[1, 1],
 			[1, 1],
@@ -175,6 +195,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 4x1
 	{
+		assetId: 19,
 		matrix: [
 			[1],
 			[1],
@@ -185,6 +206,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 1x4
 	{
+		assetId: 20,
 		matrix: [
 			[1, 1, 1, 1],
 		],
@@ -192,6 +214,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 3x1
 	{
+		assetId: 21,
 		matrix: [
 			[1],
 			[1],
@@ -201,6 +224,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 1x3
 	{
+		assetId: 22,
 		matrix: [
 			[1, 1, 1],
 		],
@@ -208,6 +232,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 2x1
 	{
+		assetId: 23,
 		matrix: [
 			[1],
 			[1],
@@ -216,6 +241,7 @@ export const piecesData: PieceDataSaved[] = [
 	},
 	// 1x2
 	{
+		assetId: 24,
 		matrix: [
 			[1, 1],
 		],
@@ -255,6 +281,23 @@ export function getRandomPieceColorWorklet(): Color {
 	return pieceColors[Math.floor(Math.random() * pieceColors.length)];
 }
 
+export function getRandomPieceAssetId(assetId: number): number {
+	if (assetId === 18) {
+		return Math.random() < 0.5 ? 18 : 25;
+	}
+
+	return assetId;
+}
+
+export function getRandomPieceAssetIdWorklet(assetId: number): number {
+	"worklet";
+	if (assetId === 18) {
+		return Math.random() < 0.5 ? 18 : 25;
+	}
+
+	return assetId;
+}
+
 export function getRandomPiece(): PieceData {
 	let position = Math.random() * totalDistributionPoints;
 	let piece: PieceDataSaved;
@@ -268,6 +311,7 @@ export function getRandomPiece(): PieceData {
 
 	return {
 		...piece!,
+		assetId: getRandomPieceAssetId(piece!.assetId),
 		color: getRandomPieceColor()
 	};
 }
@@ -286,6 +330,7 @@ export function getRandomPieceWorklet(): PieceData {
 
 	return {
 		...piece!,
+		assetId: getRandomPieceAssetIdWorklet(piece!.assetId),
 		color: getRandomPieceColorWorklet()
 	};
 }
@@ -315,15 +360,20 @@ function getBorderColors(backgroundColor: Color) {
 	};
 }
 
-export function createFilledBlockStyle(color: Color, borderWidth: number = 7): object {
+export function createFilledBlockStyle(color: Color, borderWidth: number = 5): object {
 	"worklet";
+	const base = colorToHex(color);
 	return {
-		backgroundColor: colorToHex(color), //'rgb(131, 83, 203)'
+		backgroundColor: base,
 		...getBorderColors(color),
 		borderWidth: borderWidth,
+		borderRadius: 7,
 		boxSizing: 'border-box',
-		boxShadow: 'none',
-		shadowOpacity: 0,
+		boxShadow: `0px 8px 18px rgba(${color.r}, ${color.g}, ${color.b}, 0.22)`,
+		shadowColor: base,
+		shadowOpacity: 0.24,
+		shadowRadius: 8,
+		shadowOffset: { width: 0, height: 5 },
 	}
 }
 
@@ -331,15 +381,15 @@ export function createEmptyBlockStyle(): object {
 	"worklet";
 	const borderColor = 'rgb(40, 40, 40)';
 	return {
-		backgroundColor: 'rgba(0, 0, 0, 0)',
+		backgroundColor: 'rgba(255, 255, 255, 0.025)',
 		borderColor: borderColor,
 		borderLeftColor: borderColor,
 		borderTopColor: borderColor,
 		borderRightColor: borderColor,
 		borderBottomColor: borderColor,
 		opacity: 1,
-		borderWidth: 0.25,
-		borderRadius: 0,
+		borderWidth: 1,
+		borderRadius: 7,
 		boxSizing: 'border-box',
 		boxShadow: 'none',
 		shadowOpacity: 0,
